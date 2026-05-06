@@ -909,7 +909,7 @@ async function showDetail(id){
   
   // Detaylı veriyi çek (history dahil)
   try {
-    const res = await fetch(`${API_BASE}/device/${id}`);
+    const res = await fetch(`${API_BASE}/api/device/${id}`);
     if(res.ok) {
       const detail = await res.json();
       state.activeDetail = detail;
