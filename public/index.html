@@ -707,6 +707,7 @@ function renderOverview(d){
    CHART ENGINE
 ═══════════════════════ */
 let chartBufs={};
+let zoomState = {}; // Her grafik için zoom/pan state: {key: {scale: 1, offsetX: 0}}
 const CHART_WIN=6*60*60*1000;
 const CHART_THRESH={dust:35,co:9.4,no2:100};
 
@@ -774,15 +775,42 @@ function drawCanvas(key,points){
   const H=120,dpr=window.devicePixelRatio||1;
   canvas.width=W*dpr;canvas.height=H*dpr;
   
-  // Mouse wheel zoom (gelecek özellik için hazırlık)
-  // canvas.onwheel = (e) => { e.preventDefault(); /* zoom logic */ };
+  // Zoom/Pan state başlat
+  if(!zoomState[key]) zoomState[key] = {scale: 1, offsetX: 0, isDragging: false, lastX: 0};
+  const zs = zoomState[key];
+  
+  // Mouse wheel zoom
+  canvas.onwheel = (e) => {
+    e.preventDefault();
+    const delta = e.deltaY > 0 ? 0.9 : 1.1;
+    zs.scale = Math.max(1, Math.min(10, zs.scale * delta));
+    drawCanvas(key, points);
+  };
+  
+  // Mouse drag pan
+  canvas.onmousedown = (e) => {
+    zs.isDragging = true;
+    zs.lastX = e.clientX;
+  };
+  
+  canvas.onmousemove = (e) => {
+    if(!zs.isDragging) return;
+    const dx = e.clientX - zs.lastX;
+    zs.offsetX += dx / zs.scale;
+    zs.offsetX = Math.max(-W * (zs.scale - 1), Math.min(0, zs.offsetX));
+    zs.lastX = e.clientX;
+    drawCanvas(key, points);
+  };
+  
+  canvas.onmouseup = () => zs.isDragging = false;
+  canvas.onmouseleave = () => zs.isDragging = false;
   canvas.style.width=W+'px';canvas.style.height=H+'px';
   const ctx=canvas.getContext('2d');ctx.scale(dpr,dpr);ctx.clearRect(0,0,W,H);
   const PL=42,PR=40,PT=10,PB=24,CW=W-PL-PR,CH=H-PT-PB;
   const vals=points.map(p=>p.v),tms=points.map(p=>p.t);
   let mn=Math.min(...vals),mx=Math.max(...vals);const sp=mx-mn||1;mn-=sp*.08;mx+=sp*.12;
   const tMin=tms[0],tRange=tms[tms.length-1]-tMin||1;
-  const px=t=>PL+((t-tMin)/tRange)*CW;
+  const px=t=>(PL+((t-tMin)/tRange)*CW)*zs.scale + zs.offsetX;
   const py=v=>PT+(1-(v-mn)/(mx-mn))*CH;
   const color=SENSOR_COLORS[key]||'#60a5fa';
   const thresh=CHART_THRESH[key]||null;
