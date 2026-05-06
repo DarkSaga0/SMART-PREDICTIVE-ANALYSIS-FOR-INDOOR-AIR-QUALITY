@@ -1,5 +1,0 @@
-{
-  "rewrites": [
-    { "source": "/(.*)", "destination": "/api/air_quality_web.html" }
-  ]
-}
