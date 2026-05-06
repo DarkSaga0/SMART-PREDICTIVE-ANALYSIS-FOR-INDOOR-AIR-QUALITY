@@ -985,7 +985,7 @@ async function refreshDetail(){
     }
     pushBuf(d.id,d);
     if(document.getElementById('tab-charts').classList.contains('active'))
-      setTimeout(()=>renderCharts(d),20);
+      // POLLING DISABLED -       setTimeout(()=>renderCharts(d),20);
   }
 }
 async function refresh(){
