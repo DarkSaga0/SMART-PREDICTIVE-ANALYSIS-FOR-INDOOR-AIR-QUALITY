@@ -790,16 +790,22 @@ function drawCanvas(key,points){
   ctx.fillStyle='#6b7280';ctx.font=`500 9px 'JetBrains Mono',monospace`;ctx.textAlign='right';
   for(let i=0;i<=4;i+=2){const v=mx-(i/4)*(mx-mn),y=PT+(i/4)*CH;const lbl=Math.abs(v)>=100?v.toFixed(0):Math.abs(v)>=10?v.toFixed(1):v.toFixed(2);ctx.fillText(lbl,PL-4,y+3);}
 
-  // x ekseni zaman etiketleri - 6 etiket
+  // x ekseni zaman etiketleri - son 6 saat
   ctx.fillStyle='#6b7280';ctx.font=`500 8px 'JetBrains Mono',monospace`;ctx.textAlign='center';
-  const xSteps=4;
-  for(let i=0;i<=xSteps;i++){
-    const t=tMin+(tRange*i/xSteps);
-    const x=PL+(CW*i/xSteps);
-    const d=new Date(t);
-    const lbl=d.getHours().toString().padStart(2,'0')+':'+d.getMinutes().toString().padStart(2,'0');
-    // Sadece başlangıç ve bitiş ile ortadaki 2 nokta
-    if(i===0||i===xSteps||i===1||i===3) ctx.fillText(lbl,x,H-3);
+  const now = Date.now();
+  const sixHoursAgo = now - (6 * 60 * 60 * 1000);
+  
+  // Her 2 saatte bir etiket göster (toplam 4 etiket: -6h, -4h, -2h, şimdi)
+  for(let i=0; i<=3; i++){
+    const t = sixHoursAgo + (i * 2 * 60 * 60 * 1000);
+    const x = PL + ((t - tMin) / tRange) * CW;
+    
+    // Eğer x canvas içindeyse göster
+    if(x >= PL && x <= W-PR) {
+      const d = new Date(t);
+      const lbl = d.getHours().toString().padStart(2,'0')+':'+d.getMinutes().toString().padStart(2,'0');
+      ctx.fillText(lbl, x, H-3);
+    }
   }
   // threshold
   if(thresh!=null&&thresh>=mn&&thresh<=mx){const ty=py(thresh);ctx.strokeStyle='rgba(251,191,36,.35)';ctx.lineWidth=1;ctx.setLineDash([4,4]);ctx.beginPath();ctx.moveTo(PL,ty);ctx.lineTo(W-PR,ty);ctx.stroke();ctx.setLineDash([]);ctx.fillStyle='rgba(251,191,36,.55)';ctx.font=`500 7px 'JetBrains Mono',monospace`;ctx.textAlign='right';ctx.fillText('limit',W-PR-2,ty-3);}
