@@ -707,7 +707,7 @@ function renderOverview(d){
    CHART ENGINE
 ═══════════════════════ */
 const chartBufs={};
-const CHART_WIN=24*60*60*1000;
+const CHART_WIN=6*60*60*1000;
 const CHART_THRESH={dust:35,co:9.4,no2:100};
 
 function loadHistoricalData(id){
@@ -864,7 +864,16 @@ function switchTabSilent(name){
 }
 function switchTab(name){
   switchTabSilent(name);
-  if(name==='charts')setTimeout(()=>{if(state.activeDetail){loadHistoricalData(state.activeId);renderCharts(state.activeDetail);}},50);
+  if(name==='charts'){
+    // Buffer'ı temizle ve sadece geçmiş verileri yükle
+    chartBufs = {};
+    setTimeout(()=>{
+      if(state.activeDetail){
+        loadHistoricalData(state.activeId);
+        renderCharts(state.activeDetail);
+      }
+    },50);
+  }
   if(name==='predict')fetchPrediction(state.activeId);
 }
 
