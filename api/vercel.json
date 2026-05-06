@@ -1,5 +1,5 @@
 {
   "rewrites": [
-    { "source": "/", "destination": "/air_quality_web.html" }
+    { "source": "/(.*)", "destination": "/api/air_quality_web.html" }
   ]
 }
