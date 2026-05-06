@@ -762,6 +762,12 @@ function drawCanvas(key,points){
     console.log(`  Time range: ${new Date(Math.min(...times)).toLocaleTimeString()} - ${new Date(Math.max(...times)).toLocaleTimeString()}`);
   }
   
+  // Downsampling: max 500 points
+  if(points && points.length > 500) {
+    const step = Math.ceil(points.length / 500);
+    points = points.filter((_, i) => i % step === 0);
+  }
+  
   if(!points||points.length<2){canvas.style.display='none';if(nodata)nodata.style.display='flex';return;}
   canvas.style.display='block';if(nodata)nodata.style.display='none';
   const W=canvas.parentElement.getBoundingClientRect().width||400;
