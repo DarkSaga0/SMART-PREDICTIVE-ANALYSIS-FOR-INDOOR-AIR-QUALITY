@@ -809,8 +809,19 @@ function drawCanvas(key,points){
   const PL=42,PR=40,PT=10,PB=24,CW=W-PL-PR,CH=H-PT-PB;
   const vals=points.map(p=>p.v),tms=points.map(p=>p.t);
   let mn=Math.min(...vals),mx=Math.max(...vals);const sp=mx-mn||1;mn-=sp*.08;mx+=sp*.12;
-  const tMin=tms[0],tRange=tms[tms.length-1]-tMin||1;
-  const px=t=>(PL+((t-tMin)/tRange)*CW)*zs.scale + zs.offsetX;
+  // Zoom/pan uygulanmış time range
+  const rawTMin = tms[0];
+  const rawTMax = tms[tms.length-1];
+  const rawTRange = rawTMax - rawTMin || 1;
+  
+  // Zoom ile range'i daralt
+  const viewRange = rawTRange / zs.scale;
+  
+  // Pan ile başlangıç noktasını kaydır
+  const panOffset = (-zs.offsetX / CW) * viewRange;
+  const tMin = Math.max(rawTMin, Math.min(rawTMax - viewRange, rawTMin + panOffset));
+  const tRange = viewRange;
+  const px=t=>PL+((t-tMin)/tRange)*CW;
   const py=v=>PT+(1-(v-mn)/(mx-mn))*CH;
   const color=SENSOR_COLORS[key]||'#60a5fa';
   const thresh=CHART_THRESH[key]||null;
