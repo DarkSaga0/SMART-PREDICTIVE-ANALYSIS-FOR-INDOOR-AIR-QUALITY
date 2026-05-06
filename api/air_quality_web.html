@@ -1,0 +1,1215 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AQM Network — Hava Kalitesi İzleme</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600&family=DM+Sans:wght@300;400;500&display=swap');
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#0a0b0d;--card:#0f1113;--border:rgba(255,255,255,0.07);
+  --border2:rgba(255,255,255,0.12);--ok:#4ade80;--warn:#fbbf24;
+  --bad:#f87171;--blue:#60a5fa;--text:#e8eaed;--muted:#6b7280;--hint:#3c4043;
+  --mono:'JetBrains Mono',monospace;--sans:'DM Sans',sans-serif;
+}
+html,body{background:var(--bg);color:var(--text);font-family:var(--sans);min-height:100vh;font-size:14px}html{zoom:1.25}
+
+/* NAVBAR */
+#navbar{position:sticky;top:0;z-index:100;background:rgba(10,11,13,.92);backdrop-filter:blur(12px);
+  border-bottom:1px solid var(--border);display:flex;align-items:center;padding:0 24px;height:44px;gap:16px}
+.nb-brand{font-family:var(--mono);font-size:11px;font-weight:600;letter-spacing:.2em;color:var(--text);white-space:nowrap}
+.nb-brand span{color:var(--muted)}
+.nb-sep{width:1px;height:16px;background:var(--border2)}
+.nb-status{display:flex;align-items:center;gap:6px;font-family:var(--mono);font-size:10px;color:var(--muted)}
+.nb-dot{width:6px;height:6px;border-radius:50%;background:var(--ok);flex-shrink:0}
+.nb-dot.warn{background:var(--warn)}.nb-dot.bad{background:var(--bad);animation:blink .8s infinite}
+.nb-dot.searching{background:var(--muted);animation:pulse 1.5s infinite}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.2}}
+@keyframes pulse{0%,100%{opacity:.4;transform:scale(.8)}50%{opacity:1;transform:scale(1)}}
+.nb-spacer{flex:1}
+.nb-clock{font-family:var(--mono);font-size:11px;color:var(--muted);letter-spacing:.05em}
+.nb-refresh{font-family:var(--mono);font-size:9px;color:var(--hint);display:flex;align-items:center;gap:4px}
+.nb-refresh-dot{width:5px;height:5px;border-radius:50%;background:var(--ok);opacity:.5;transition:opacity .2s}
+.nb-refresh-dot.active{opacity:1}
+
+/* SCREENS */
+.screen{display:none}.screen.active{display:block}
+
+/* SELECTOR */
+#sel-screen{padding:24px}
+.sel-heading{font-family:var(--mono);font-size:9px;letter-spacing:.18em;color:var(--muted);margin-bottom:16px}
+.device-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:1px;background:var(--border);border:1px solid var(--border);border-radius:8px;overflow:hidden}
+.device-card{background:var(--bg);padding:22px 20px 18px;cursor:pointer;position:relative;overflow:hidden;transition:background .15s}
+.device-card:hover{background:#0c0d0f}
+.device-card::after{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:var(--accent,var(--blue));opacity:.5;transition:opacity .2s}
+.device-card:hover::after{opacity:1}
+.dc-status{display:flex;align-items:center;gap:5px;margin-bottom:8px}
+.dc-status-dot{width:5px;height:5px;border-radius:50%;flex-shrink:0}
+.dc-status-txt{font-family:var(--mono);font-size:9px;color:var(--muted);letter-spacing:.06em}
+.dc-location{font-family:var(--mono);font-size:10px;color:#9ca3af;letter-spacing:.08em;margin-bottom:4px}
+.dc-name{font-size:14px;font-weight:500;color:var(--text);margin-bottom:16px}
+.dc-aqi-row{display:flex;align-items:baseline;gap:10px;margin-bottom:2px}
+.dc-aqi-num{font-family:var(--mono);font-size:42px;font-weight:600;line-height:1;transition:color .3s}
+.dc-aqi-badge{font-family:var(--mono);font-size:10px;font-weight:500;padding:2px 8px;border-radius:3px;border:1px solid}
+.dc-aqi-dominant{font-family:var(--mono);font-size:9px;color:var(--muted);margin-bottom:14px}
+.dc-mini{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-top:12px}
+.dc-mini-item{background:rgba(255,255,255,.03);border:1px solid var(--border);border-radius:4px;padding:6px 8px}
+.dc-mini-k{font-family:var(--mono);font-size:9px;color:#9ca3af;letter-spacing:.04em;margin-bottom:3px}
+.dc-mini-v{font-family:var(--mono);font-size:13px;font-weight:500}
+.dc-arrow{position:absolute;bottom:18px;right:18px;font-family:var(--mono);font-size:11px;color:var(--muted);transition:all .15s}
+.device-card:hover .dc-arrow{color:var(--text);transform:translateX(3px)}
+
+/* DETAIL HEADER */
+.det-header{padding:10px 20px;border-bottom:1px solid var(--border);background:var(--card);display:flex;align-items:center;gap:12px}
+.back-btn{font-family:var(--mono);font-size:10px;color:var(--muted);padding:4px 10px;border:1px solid var(--border2);border-radius:3px;background:transparent;cursor:pointer;transition:all .15s;white-space:nowrap}
+.back-btn:hover{color:var(--text);border-color:rgba(255,255,255,.25)}
+.dh-info{flex:1;min-width:0}
+.dh-location{font-family:var(--mono);font-size:9px;color:var(--muted);letter-spacing:.1em}
+.dh-name{font-size:13px;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.dh-badge{font-family:var(--mono);font-size:10px;font-weight:600;padding:3px 10px;border-radius:3px;border:1px solid;white-space:nowrap}
+.dh-time{font-family:var(--mono);font-size:10px;color:var(--muted);white-space:nowrap}
+.dh-conn{font-family:var(--mono);font-size:9px;white-space:nowrap}
+
+/* TABS */
+.det-tabs{display:flex;background:var(--card);border-bottom:1px solid var(--border);padding:0 20px}
+.det-tab{font-family:var(--mono);font-size:10px;letter-spacing:.1em;color:var(--muted);padding:10px 16px;cursor:pointer;border-bottom:2px solid transparent;transition:color .15s,border-color .15s;background:transparent;border-top:none;border-left:none;border-right:none;white-space:nowrap}
+.det-tab:hover{color:var(--text)}.det-tab.active{color:var(--text);border-bottom-color:var(--blue)}
+.tab-pane{display:none}.tab-pane.active{display:block}
+
+/* OVERVIEW */
+.det-top{display:flex;border-bottom:1px solid var(--border)}
+.det-aqi-panel{width:190px;flex-shrink:0;border-right:1px solid var(--border);background:var(--card);padding:16px 14px;display:flex;flex-direction:column;align-items:center;gap:10px}
+.aqi-label-top{font-family:var(--mono);font-size:8px;letter-spacing:.16em;color:var(--hint);align-self:flex-start}
+.ring-wrap{position:relative;width:120px;height:120px}
+.ring-wrap svg{width:120px;height:120px}
+.ring-center{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px}
+.ring-num{font-family:var(--mono);font-size:30px;font-weight:600;line-height:1}
+.ring-sub{font-family:var(--mono);font-size:7px;color:var(--hint);letter-spacing:.1em}
+.ring-cat{font-family:var(--mono);font-size:10px;font-weight:600;letter-spacing:.08em}
+.ring-dominant{font-family:var(--mono);font-size:8px;color:var(--muted)}
+.hist-section{width:100%}
+.hist-lbl-top{font-family:var(--mono);font-size:8px;letter-spacing:.14em;color:var(--hint);margin-bottom:6px}
+.hist-row{display:flex;justify-content:space-between;align-items:center;padding:5px 0;border-bottom:1px solid var(--border)}
+.hist-row:last-child{border-bottom:none}
+.hist-k{font-family:var(--mono);font-size:9px;color:var(--muted)}
+.hist-v{font-family:var(--mono);font-size:13px;font-weight:500}
+.sensor-grid{flex:1;display:grid;grid-template-columns:repeat(3,1fr);grid-template-rows:repeat(2,1fr);background:var(--border)}
+.sensor-card{background:var(--bg);padding:14px 12px;position:relative;overflow:hidden}
+.sensor-card::before{content:'';position:absolute;left:0;top:0;bottom:0;width:2px;background:var(--sc,var(--blue));opacity:.7}
+.sc-title{font-family:var(--mono);font-size:10px;color:#e8eaed;font-weight:600;letter-spacing:.06em;padding-left:9px;margin-bottom:3px}
+.sc-val{font-family:var(--mono);font-size:30px;font-weight:600;line-height:1;padding-left:9px}
+.sc-unit{font-family:var(--mono);font-size:9px;color:#9ca3af;padding-left:9px;margin-top:1px}
+.sc-bar-track{height:2px;background:rgba(255,255,255,.07);border-radius:1px;margin:8px 9px 5px;overflow:hidden}
+.sc-bar-fill{height:100%;border-radius:1px;transition:width .4s}
+.sc-qual{font-family:var(--mono);font-size:9px;padding-left:9px;letter-spacing:.04em}
+.det-charts{display:grid;grid-template-columns:2fr 1fr;border-bottom:1px solid var(--border)}
+.chart-block{padding:12px 16px;border-right:1px solid var(--border)}
+.chart-block:last-child{border-right:none}
+.chart-title{font-family:var(--mono);font-size:8px;letter-spacing:.12em;color:var(--muted);margin-bottom:8px}
+.mini-chart{display:flex;align-items:flex-end;gap:2px;height:36px}
+.mini-bar{flex:1;border-radius:1px 1px 0 0;min-height:2px;opacity:.7}
+.corr-strip{display:flex}
+.corr-item{flex:1;padding:9px 14px;border-right:1px solid var(--border);background:var(--card)}
+.corr-item:last-child{border-right:none}
+.corr-k{font-family:var(--mono);font-size:8px;color:var(--muted);margin-bottom:2px}
+.corr-v{font-family:var(--mono);font-size:13px;font-weight:500}
+
+/* CHARTS TAB */
+#tab-charts{padding:16px 24px 24px;background:var(--bg)}
+.charts-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:14px}
+.chart-card{background:var(--card);border:1px solid var(--border);border-radius:6px;overflow:hidden}
+.chart-card-header{display:flex;align-items:center;justify-content:space-between;padding:10px 14px 8px;border-bottom:1px solid var(--border)}
+.chart-card-title{font-family:var(--mono);font-size:10px;letter-spacing:.1em;color:#9ca3af;font-weight:600}
+.chart-card-unit{font-family:var(--mono);font-size:8px;color:var(--hint);margin-top:2px}
+.chart-card-val{font-family:var(--mono);font-size:16px;font-weight:600}
+.chart-card-body{padding:8px 8px 4px;position:relative}
+.chart-card-body canvas{display:block;width:100%!important;height:120px!important}
+.chart-no-data{height:120px;display:flex;align-items:center;justify-content:center;font-family:var(--mono);font-size:10px;color:var(--hint)}
+.chart-time-axis{display:flex;justify-content:space-between;padding:0 8px 8px}
+.chart-time-axis span{font-family:var(--mono);font-size:8px;color:var(--hint)}
+
+/* OVERLAY */
+#conn-overlay{display:none;position:fixed;inset:0;z-index:200;background:var(--bg);align-items:center;justify-content:center;flex-direction:column}
+#conn-overlay.show{display:flex}
+.ov-content{display:flex;flex-direction:column;align-items:center;gap:16px;width:280px}
+.ov-logo{font-family:var(--mono);font-size:22px;font-weight:600;letter-spacing:.25em;color:var(--text);animation:fadeInUp .5s ease both}
+.ov-logo span{color:var(--blue)}
+.ov-tagline{font-family:var(--mono);font-size:9px;letter-spacing:.2em;color:var(--muted);animation:fadeInUp .5s ease .1s both}
+.ov-progress-track{width:100%;height:2px;background:rgba(255,255,255,.08);border-radius:1px;overflow:hidden;animation:fadeInUp .5s ease .2s both}
+.ov-progress-fill{height:100%;width:0%;background:var(--blue);border-radius:1px;transition:width .4s ease}
+.ov-txt{font-family:var(--mono);font-size:10px;color:var(--muted);letter-spacing:.1em;animation:fadeInUp .5s ease .3s both;min-height:16px}
+.ov-steps{display:flex;flex-direction:column;gap:6px;width:100%;animation:fadeInUp .5s ease .4s both}
+.ov-step{font-family:var(--mono);font-size:9px;color:var(--hint);letter-spacing:.06em;transition:color .3s}
+.ov-step.done{color:var(--ok)}
+.ov-step.done::first-letter{content:'●'}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+.pred-sensors-grid{display:grid;grid-template-columns:repeat(3,1fr);background:var(--border);gap:1px}
+
+@media(max-width:700px){
+  .device-grid,.charts-grid{grid-template-columns:1fr}
+  .sensor-grid{grid-template-columns:repeat(2,1fr)}
+  .det-top{flex-direction:column}
+  .det-aqi-panel{width:100%;border-right:none;border-bottom:1px solid var(--border)}
+  .det-charts{grid-template-columns:1fr}
+  .corr-strip{flex-wrap:wrap}
+  .corr-item{flex:0 0 50%}
+  #navbar{padding:0 12px;gap:8px;height:40px}
+  .nb-clock{display:none}
+  .nb-brand{font-size:10px}
+  .nb-status{font-size:9px}
+  #sel-screen{padding:12px}
+  .device-card{padding:16px 14px 14px}
+  .dc-aqi-num{font-size:32px}
+  .dc-mini{grid-template-columns:repeat(2,1fr)}
+  .det-header{flex-wrap:wrap;padding:8px 12px;gap:8px}
+  .dh-badge{font-size:9px;padding:2px 8px}
+  .dh-time{display:none}
+  .det-tabs{padding:0 8px;overflow-x:auto;-webkit-overflow-scrolling:touch}
+  .det-tabs::-webkit-scrollbar{display:none}
+  .det-tab{padding:10px 10px;font-size:9px;white-space:nowrap}
+  .sc-val{font-size:22px}
+  .sensor-card{padding:10px 8px}
+  .ring-wrap,.ring-wrap svg{width:100px;height:100px}
+  .ring-num{font-size:24px}
+  #tab-charts{padding:10px 12px 16px}
+  #tab-predict>div{padding:12px}
+  .pred-sensors-grid{grid-template-columns:repeat(2,1fr)}
+}
+
+@media(max-width:400px){
+  .det-tab{padding:8px 6px;font-size:8px}
+  .dc-aqi-num{font-size:28px}
+}
+
+/* ── ANIMASYONLAR ── */
+@keyframes fadeInUp{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}
+@keyframes fadeInScale{from{opacity:0;transform:scale(.96)}to{opacity:1;transform:scale(1)}}
+@keyframes pulseGlow{0%,100%{box-shadow:none}50%{box-shadow:0 0 12px var(--glow,rgba(96,165,250,.25))}}
+@keyframes countUp{from{transform:translateY(8px);opacity:0}to{transform:translateY(0);opacity:1}}
+
+/* Kart fade-in */
+.device-card.animate-in{animation:fadeInScale .35s ease both}
+.device-card.animate-in:nth-child(1){animation-delay:.05s}
+.device-card.animate-in:nth-child(2){animation-delay:.10s}
+.device-card.animate-in:nth-child(3){animation-delay:.15s}
+.device-card.animate-in:nth-child(4){animation-delay:.20s}
+
+/* Pulse efekti - değer güncellenince */
+.val-pulse{animation:pulseGlow .6s ease}
+
+/* Hover flip kartı */
+.device-card{transform-style:preserve-3d;transition:background .15s,transform .4s}
+.device-card:hover{transform:translateY(-2px)}
+
+/* Counter animation */
+.count-anim{animation:countUp .3s ease both}
+
+/* Sensor card hover */
+.sensor-card{transition:background .2s}
+.sensor-card:hover{background:rgba(255,255,255,.03)}
+
+/* AQI ring smooth */
+#ring-arc{transition:stroke-dashoffset .8s cubic-bezier(.4,0,.2,1),stroke .4s ease}
+
+/* Navbar pulse dot */
+.nb-dot{transition:background .3s}
+.nb-refresh-dot{transition:opacity .2s,transform .2s}
+.nb-refresh-dot.active{transform:scale(1.4)}
+
+/* Tab transition */
+.tab-pane{animation:fadeInUp .25s ease both}
+
+/* Detail header fade */
+.det-header{animation:fadeInUp .2s ease both}
+
+/* Mini chart bars */
+.mini-bar{transition:height .4s ease}
+</style>
+</head>
+<body>
+
+<div id="navbar">
+  <div class="nb-brand">AQM<span>·</span>NETWORK</div>
+  <div class="nb-sep"></div>
+  <div class="nb-status"><div class="nb-dot" id="nb-dot"></div><span id="nb-status-txt">Bağlanıyor...</span></div>
+  <div class="nb-spacer"></div>
+  <div class="nb-refresh"><div class="nb-refresh-dot" id="nb-refresh-dot"></div><span id="nb-refresh-txt">—</span></div>
+  <div class="nb-sep"></div>
+  <div class="nb-clock" id="nb-clock">--:--:--</div>
+</div>
+
+<div id="conn-overlay">
+  <div class="ov-content">
+    <div class="ov-logo">AQM<span>·</span>NETWORK</div>
+    <div class="ov-tagline">Hava Kalitesi İzleme Sistemi</div>
+    <div class="ov-progress-track">
+      <div class="ov-progress-fill" id="ov-progress"></div>
+    </div>
+    <div class="ov-txt" id="ov-txt">Sensörler bağlanıyor...</div>
+    <div class="ov-steps">
+      <div class="ov-step" id="ov-step-1">○ API bağlantısı</div>
+      <div class="ov-step" id="ov-step-2">○ Sensör verileri</div>
+      <div class="ov-step" id="ov-step-3">○ Hazırlanıyor</div>
+    </div>
+  </div>
+</div>
+
+<!-- SELECTOR -->
+<div class="screen active" id="sel-screen">
+  <div style="padding:20px 24px 12px;display:flex;align-items:center;justify-content:space-between">
+    <div class="sel-heading">CİHAZ SEÇİMİ — KONUM HARİTASI</div>
+    <div style="font-family:var(--mono);font-size:9px;color:var(--hint)" id="sel-last-update">—</div>
+  </div>
+  <div style="padding:0 24px 24px">
+    <div class="device-grid" id="device-grid"></div>
+  </div>
+</div>
+
+<!-- DETAIL -->
+<div class="screen" id="det-screen">
+  <div class="det-header">
+    <button class="back-btn" onclick="showSelector()">← Tüm Cihazlar</button>
+    <div class="dh-info">
+      <div class="dh-location" id="dh-location">—</div>
+      <div class="dh-name" id="dh-name">—</div>
+    </div>
+    <div class="dh-badge" id="dh-badge">AQI —</div>
+    <div class="dh-conn" id="dh-conn"></div>
+    <div class="dh-time" id="dh-time">--:--:--</div>
+  </div>
+
+  <div class="det-tabs">
+    <button class="det-tab active" onclick="switchTab('overview')">CANLI GÖSTERGE</button>
+    <button class="det-tab" onclick="switchTab('charts')">GRAFİKLER</button>
+    <button class="det-tab" onclick="switchTab('predict')">TAHMİN</button>
+  </div>
+
+  <!-- Overview Tab -->
+  <div class="tab-pane active" id="tab-overview">
+    <div class="det-top">
+      <div class="det-aqi-panel">
+        <div class="aqi-label-top">HAVA KALİTESİ ENDEKSİ</div>
+        <div class="ring-wrap">
+          <svg viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg">
+            <circle cx="60" cy="60" r="48" fill="none" stroke="rgba(255,255,255,.06)" stroke-width="8"/>
+            <circle cx="60" cy="60" r="48" fill="none" id="ring-arc" stroke-width="8" stroke-linecap="round"
+              stroke-dasharray="301.6" stroke-dashoffset="301.6" transform="rotate(-90 60 60)"
+              style="transition:stroke-dashoffset .5s ease,stroke .3s"/>
+          </svg>
+          <div class="ring-center">
+            <div class="ring-num" id="d-aqi-num">—</div>
+            <div class="ring-sub">AQI INDEX</div>
+          </div>
+        </div>
+        <div class="ring-cat" id="d-aqi-cat">—</div>
+        <div class="ring-dominant" id="d-aqi-dom"></div>
+        <div class="hist-section">
+          <div class="hist-lbl-top">GEÇMİŞ</div>
+          <div class="hist-row"><span class="hist-k">01 saat</span><span class="hist-v" id="h-1h">—</span></div>
+          <div class="hist-row"><span class="hist-k">06 saat</span><span class="hist-v" id="h-6h">—</span></div>
+          <div class="hist-row"><span class="hist-k">12 saat</span><span class="hist-v" id="h-12h">—</span></div>
+        </div>
+      </div>
+      <div class="sensor-grid" id="sensor-grid"></div>
+    </div>
+    <div id="health-strip" style="display:grid;grid-template-columns:repeat(3,1fr);background:var(--border);gap:1px;border-top:1px solid var(--border)"></div>
+  </div>
+
+  <!-- Charts Tab -->
+  <div class="tab-pane" id="tab-charts">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
+      <div style="font-family:var(--mono);font-size:9px;letter-spacing:.16em;color:var(--muted)">SON 6 SAAT · CANLI</div>
+      <div style="font-family:var(--mono);font-size:9px;color:var(--hint)" id="charts-last-update">—</div>
+    </div>
+    <div class="charts-grid">
+
+      <div class="chart-card">
+        <div class="chart-card-header">
+          <div><div class="chart-card-title">SICAKLIK</div><div class="chart-card-unit">°C</div></div>
+          <div class="chart-card-val" id="gc-temperature" style="color:#60a5fa;font-size:20px">—</div>
+        </div>
+        <div class="chart-card-body">
+          <canvas id="canvas-temperature"></canvas>
+          <div class="chart-no-data" id="nodata-temperature" style="display:none">Veri bekleniyor...</div>
+        </div>
+
+      </div>
+
+      <div class="chart-card">
+        <div class="chart-card-header">
+          <div><div class="chart-card-title">NEM</div><div class="chart-card-unit">%</div></div>
+          <div class="chart-card-val" id="gc-humidity" style="color:#78c5e0">—</div>
+        </div>
+        <div class="chart-card-body">
+          <canvas id="canvas-humidity"></canvas>
+          <div class="chart-no-data" id="nodata-humidity" style="display:none">Veri bekleniyor...</div>
+        </div>
+
+      </div>
+
+      <div class="chart-card">
+        <div class="chart-card-header">
+          <div><div class="chart-card-title">PM₂.₅ — TOZ YOĞUNLUĞU</div><div class="chart-card-unit">µg/m³ · EPA limit: 35</div></div>
+          <div class="chart-card-val" id="gc-dust" style="color:#c084fc">—</div>
+        </div>
+        <div class="chart-card-body">
+          <canvas id="canvas-dust"></canvas>
+          <div class="chart-no-data" id="nodata-dust" style="display:none">Veri bekleniyor...</div>
+        </div>
+
+      </div>
+
+      <div class="chart-card">
+        <div class="chart-card-header">
+          <div><div class="chart-card-title">CO — KARBONMONOKSİT</div><div class="chart-card-unit">ppm · EPA limit: 9.4</div></div>
+          <div class="chart-card-val" id="gc-co" style="color:#4ade80">—</div>
+        </div>
+        <div class="chart-card-body">
+          <canvas id="canvas-co"></canvas>
+          <div class="chart-no-data" id="nodata-co" style="display:none">Veri bekleniyor...</div>
+        </div>
+
+      </div>
+
+      <div class="chart-card">
+        <div class="chart-card-header">
+          <div><div class="chart-card-title">NO₂ — NİTROJENDİOKSİT</div><div class="chart-card-unit">ppb · EPA limit: 100</div></div>
+          <div class="chart-card-val" id="gc-no2" style="color:#5eead4">—</div>
+        </div>
+        <div class="chart-card-body">
+          <canvas id="canvas-no2"></canvas>
+          <div class="chart-no-data" id="nodata-no2" style="display:none">Veri bekleniyor...</div>
+        </div>
+
+      </div>
+
+      <div class="chart-card">
+        <div class="chart-card-header">
+          <div><div class="chart-card-title">OZON</div><div class="chart-card-unit">ppb</div></div>
+          <div class="chart-card-val" id="gc-ozone_raw" style="color:#f87171">—</div>
+        </div>
+        <div class="chart-card-body">
+          <canvas id="canvas-ozone_raw"></canvas>
+          <div class="chart-no-data" id="nodata-ozone_raw" style="display:none">Veri bekleniyor...</div>
+        </div>
+
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Predict Tab -->
+  <div class="tab-pane" id="tab-predict">
+    <div style="padding:24px">
+      <div id="pred-card" style="background:var(--card);border:1px solid var(--border);border-radius:8px;overflow:hidden;margin-bottom:16px">
+        <div style="padding:14px 18px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between">
+          <div style="font-family:var(--mono);font-size:9px;letter-spacing:.14em;color:var(--muted)">HAFTALİK TAHMİN</div>
+          <div style="font-family:var(--mono);font-size:9px;color:var(--hint)" id="pred-updated">—</div>
+        </div>
+        <div id="pred-summary-bar" style="display:none;padding:10px 18px;background:rgba(96,165,250,.08);border-bottom:1px solid var(--border)">
+          <div style="font-family:var(--mono);font-size:11px;color:#60a5fa" id="pred-summary-txt">—</div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr auto 1fr;background:var(--border);gap:1px">
+          <div style="background:var(--bg);padding:20px 18px">
+            <div style="font-family:var(--mono);font-size:8px;letter-spacing:.12em;color:var(--muted);margin-bottom:8px">ŞU AN</div>
+            <div style="font-family:var(--mono);font-size:44px;font-weight:600;line-height:1" id="pred-current-num">—</div>
+            <div style="font-family:var(--mono);font-size:10px;font-weight:500;margin-top:6px" id="pred-current-label">—</div>
+          </div>
+          <div style="background:var(--bg);padding:20px 24px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px">
+            <div style="font-family:var(--mono);font-size:20px;color:var(--hint)">→</div>
+            <div style="font-family:var(--mono);font-size:8px;letter-spacing:.1em;color:var(--hint);text-align:center">7 GÜN<br>SONRA</div>
+          </div>
+          <div style="background:var(--bg);padding:20px 18px">
+            <div style="font-family:var(--mono);font-size:8px;letter-spacing:.12em;color:var(--muted);margin-bottom:8px">TAHMİN</div>
+            <div style="font-family:var(--mono);font-size:44px;font-weight:600;line-height:1" id="pred-num">—</div>
+            <div style="font-family:var(--mono);font-size:10px;font-weight:500;margin-top:6px" id="pred-label">—</div>
+          </div>
+        </div>
+        <div style="padding:12px 18px;border-top:1px solid var(--border);display:flex;align-items:center;justify-content:space-between">
+          <div style="font-family:var(--mono);font-size:10px" id="pred-diff">—</div>
+          <div style="display:flex;align-items:center;gap:8px">
+            <div style="font-family:var(--mono);font-size:8px;color:var(--muted)">GÜVENİLİRLİK</div>
+            <div style="font-family:var(--mono);font-size:9px;padding:2px 8px;border-radius:3px;border:1px solid" id="pred-confidence">—</div>
+          </div>
+        </div>
+      </div>
+      <!-- SENSÖR TAHMİN TABLOSU -->
+      <div id="pred-sensors-card" style="background:var(--card);border:1px solid var(--border);border-radius:8px;overflow:hidden;margin-bottom:16px">
+        <div style="padding:10px 18px;border-bottom:1px solid var(--border)">
+          <div style="font-family:var(--mono);font-size:9px;letter-spacing:.14em;color:var(--muted)">SENSÖR TAHMİNLERİ — 7 GÜN SONRA</div>
+        </div>
+        <div id="pred-sensors-grid" class="pred-sensors-grid"></div>
+      </div>
+      <!-- DEĞİŞİM AÇIKLAMALARI -->
+      <div id="pred-explanations-card" style="display:none;background:var(--card);border:1px solid var(--border);border-radius:8px;overflow:hidden;margin-bottom:16px">
+        <div style="padding:10px 18px;border-bottom:1px solid var(--border)">
+          <div style="font-family:var(--mono);font-size:9px;letter-spacing:.14em;color:var(--muted)">AQI DEĞİŞİMİNİN SEBEBİ</div>
+        </div>
+        <div id="pred-explanations" style="padding:14px 18px;display:flex;flex-direction:column;gap:8px"></div>
+      </div>
+      <div style="background:var(--card);border:1px solid var(--border);border-radius:6px;padding:14px 18px;margin-bottom:16px">
+        <div style="font-family:var(--mono);font-size:8px;letter-spacing:.12em;color:var(--muted);margin-bottom:8px">MODEL HAKKINDA</div>
+        <div style="font-family:var(--mono);font-size:10px;color:var(--hint);line-height:1.9" id="pred-info">Tahmin yükleniyor...</div>
+      </div>
+      <div id="pred-error" style="display:none;background:#1a0f0f;border:1px solid #f8717133;border-radius:6px;padding:14px 18px">
+        <div style="font-family:var(--mono);font-size:9px;color:var(--bad)" id="pred-error-txt">—</div>
+      </div>
+    </div>
+  </div>
+
+</div><!-- /det-screen -->
+<script>
+
+/* ═══════════════════════
+   AYARLAR
+═══════════════════════ */
+const API_BASE = 'https://api.khasairquality.com';
+const PREDICT_BASE = 'https://predict.khasairquality.com';  // ← Flask/FastAPI adresi
+const REFRESH_MS = 2500;
+
+/*
+  GET /api/devices  →  [{id, name, location, online, aqi, aqi_label, aqi_dominant,
+                         temperature, humidity, dust, co, no2, ozone_raw}]
+
+  GET /api/device/<id>  →  { ...yukarıdakiler,
+    history:     {dust:[...], aqi:[...]},
+    correlation: {pm_humidity, co_temp, no2_temp, ozone_temp},
+    aqi_1h, aqi_6h, aqi_12h }
+*/
+
+/* ═══════════════════════
+   DEMO VERİSİ
+═══════════════════════ */
+const DEMO_DEVICES = [
+  {id:'aqm01',name:'AQM-01 — Ana Ofis',location:'Kütüphane',online:true,
+   aqi:55,aqi_label:'Orta',aqi_dominant:'PM2.5',temperature:27.0,humidity:38.9,dust:26.0,co:1.95,no2:6.80,ozone_raw:17.2,
+   history:{dust:[20,22,24,23,25,26,25,26],aqi:[50,52,53,52,54,55,54,55]},
+   correlation:{pm_humidity:-0.65,co_temp:-0.49,no2_temp:-0.49,ozone_temp:0.00},aqi_1h:55,aqi_6h:55,aqi_12h:55},
+  {id:'aqm02',name:'AQM-02 — Toplantı Odası',location:'KAT 2 · BÖLGE B',online:true,
+   aqi:38,aqi_label:'İyi',aqi_dominant:'PM2.5',temperature:22.5,humidity:45.2,dust:11.4,co:1.20,no2:4.10,ozone_raw:10.8,
+   history:{dust:[10,11,12,11,10,12,11,11],aqi:[36,37,38,37,39,38,37,38]},
+   correlation:{pm_humidity:-0.42,co_temp:-0.31,no2_temp:-0.28,ozone_temp:0.05},aqi_1h:38,aqi_6h:38,aqi_12h:37},
+  {id:'aqm03',name:'AQM-03 — Üretim Hattı',location:'KAT 1 · BÖLGE C',online:true,
+   aqi:112,aqi_label:'Hassas Gruplar',aqi_dominant:'PM2.5',temperature:31.8,humidity:62.4,dust:48.7,co:7.80,no2:89.3,ozone_raw:34.5,
+   history:{dust:[42,45,47,46,49,48,49,49],aqi:[105,108,110,109,112,111,112,112]},
+   correlation:{pm_humidity:-0.71,co_temp:-0.55,no2_temp:-0.62,ozone_temp:0.12},aqi_1h:112,aqi_6h:111,aqi_12h:110},
+  {id:'aqm04',name:'AQM-04 — Bina Girişi',location:'AÇIK ALAN · GİRİŞ',online:true,
+   aqi:72,aqi_label:'Orta',aqi_dominant:'NO₂',temperature:24.1,humidity:51.7,dust:33.2,co:3.45,no2:28.6,ozone_raw:22.1,
+   history:{dust:[30,31,33,32,34,33,33,33],aqi:[68,70,72,71,73,72,71,72]},
+   correlation:{pm_humidity:-0.58,co_temp:-0.44,no2_temp:-0.39,ozone_temp:0.08},aqi_1h:72,aqi_6h:71,aqi_12h:71},
+];
+
+/* ═══════════════════════
+   YARDIMCILAR
+═══════════════════════ */
+const DEVICE_ACCENTS=['#60a5fa','#4ade80','#f87171','#c084fc'];
+function aqiColor(v){if(v==null)return'#6b7280';return v<=50?'#4ade80':v<=100?'#fbbf24':v<=150?'#fbbf24':'#f87171';}
+const QUAL={
+  temperature:v=>v<20?['Soğuk','#60a5fa',30]:v<=25?['Konforlu','#4ade80',52]:v<=30?['Ilık','#4ade80',65]:['Sıcak','#fbbf24',82],
+  humidity:   v=>v<35?['Kuru','#fbbf24',28]:v<=60?['İdeal','#4ade80',54]:v<=75?['Nemli','#4ade80',70]:['Çok nemli','#fbbf24',88],
+  dust:       v=>v<=12?['İyi · WHO','#4ade80',20]:v<=25?['Kabul · WHO','#4ade80',46]:v<=35?['Orta · EPA','#fbbf24',68]:['Sağlıksız','#f87171',90],
+  co:         v=>v<=4.4?['İyi · EPA','#4ade80',28]:v<=9.4?['EPA limiti','#fbbf24',62]:['Aşıldı','#f87171',88],
+  no2:        v=>v<=25?['WHO ideal','#4ade80',18]:v<=53?['İyi · EPA','#4ade80',38]:v<=100?['EPA limiti','#fbbf24',62]:['Sağlıksız','#f87171',88],
+  ozone_raw:  v=>v<=50?['İyi','#4ade80',24]:v<=100?['Normal','#4ade80',45]:v<=150?['Dikkat','#fbbf24',65]:['Yüksek','#f87171',85],
+};
+function getQ(key,v){return QUAL[key]?QUAL[key](v):['—','#6b7280',50];}
+const SENSOR_COLORS={temperature:'#60a5fa',humidity:'#78c5e0',dust:'#c084fc',co:'#4ade80',no2:'#5eead4',ozone_raw:'#f87171'};
+const SENSOR_DEFS=[
+  {key:'temperature',label:'Sıcaklık',unit:'°C'},
+  {key:'humidity',   label:'Nem',     unit:'%'},
+  {key:'dust',       label:'PM₂.₅',   unit:'µg/m³'},
+  {key:'co',         label:'CO',      unit:'ppm'},
+  {key:'no2',        label:'NO₂',     unit:'ppb'},
+  {key:'ozone_raw',  label:'Ozon',    unit:'ppb'},
+];
+function fmtVal(v){if(v==null||isNaN(v))return'—';return Math.abs(v)>=100?v.toFixed(0):Math.abs(v)>=10?v.toFixed(1):v.toFixed(2);}
+
+/* Counter animation - sayıyı animasyonlu güncelle */
+function animateCounter(el, newVal, duration=400){
+  if(!el) return;
+  const start = parseFloat(el.textContent) || 0;
+  const end   = parseFloat(newVal) || 0;
+  if(Math.abs(start-end) < 0.01){ el.textContent = newVal; return; }
+  const startTime = performance.now();
+  function step(now){
+    const p = Math.min((now-startTime)/duration, 1);
+    const ease = 1-Math.pow(1-p,3);
+    const cur = start + (end-start)*ease;
+    el.textContent = fmtVal(cur);
+    if(p<1) requestAnimationFrame(step);
+    else el.textContent = newVal;
+  }
+  requestAnimationFrame(step);
+}
+
+/* Pulse efekti - element güncellenince glow */
+function pulseEl(el, color='rgba(96,165,250,.3)'){
+  if(!el) return;
+  el.style.setProperty('--glow', color);
+  el.classList.remove('val-pulse');
+  void el.offsetWidth;
+  el.classList.add('val-pulse');
+  setTimeout(()=>el.classList.remove('val-pulse'), 600);
+}
+
+/* ═══════════════════════
+   STATE
+═══════════════════════ */
+let state={devices:[],activeId:null,activeDetail:null,apiOk:false,demoMode:false};
+
+/* ═══════════════════════
+   API
+═══════════════════════ */
+async function fetchDevices(){
+  try{const r=await fetch(`${API_BASE}/api/devices`,{signal:AbortSignal.timeout(3000)});if(!r.ok)throw 0;return await r.json();}catch{return null;}
+}
+
+const predCache={};
+async function fetchPredictionForCard(deviceId){
+  const idMap={'Air_Quality_0':'aqm00','Air_Quality_1':'aqm01','Air_Quality_2':'aqm02','Air_Quality_3':'aqm03'};
+  const pid=idMap[deviceId]||deviceId;
+  try{
+    const r=await fetch(`${PREDICT_BASE}/api/predict/${pid}`,{signal:AbortSignal.timeout(15000)});
+    const d=await r.json();
+    if(d.predicted_aqi) predCache[deviceId]=d;
+  }catch{}
+}
+async function fetchDevice(id){
+  try{const r=await fetch(`${API_BASE}/api/device/${id}`,{signal:AbortSignal.timeout(3000)});if(!r.ok)throw 0;return await r.json();}catch{return null;}
+}
+
+/* ═══════════════════════
+   SELECTOR
+═══════════════════════ */
+function renderSelector(){
+  const grid=document.getElementById('device-grid');
+  const devs=state.devices;
+  if(!devs||!devs.length){grid.innerHTML='<div style="grid-column:1/-1;padding:40px;text-align:center;font-family:var(--mono);font-size:11px;color:var(--muted)">Cihaz verisi alınamadı</div>';return;}
+  const isFirst=_firstLoad;
+  if(_firstLoad)_firstLoad=false;
+  grid.innerHTML=devs.map((d,i)=>{
+    const acc=DEVICE_ACCENTS[i%4],ac=aqiColor(d.aqi);
+    if(!d.online)return`<div class="device-card${isFirst?' animate-in':''}" style="--accent:${acc}"><div class="dc-status"><div class="dc-status-dot" style="background:var(--bad)"></div><div class="dc-status-txt">ÇEVRİMDIŞI</div></div><div class="dc-location">${d.location||'—'}</div><div class="dc-name">${d.name}</div><div style="height:60px;display:flex;align-items:center;justify-content:center;font-family:var(--mono);font-size:10px;color:var(--muted)">Bağlantı yok</div></div>`;
+    const mini=['temperature','humidity','dust','co','no2','ozone_raw'].map(k=>{const def=SENSOR_DEFS.find(s=>s.key===k);const[,qc]=getQ(k,d[k]);return`<div class="dc-mini-item"><div class="dc-mini-k">${def.label}</div><div class="dc-mini-v" style="color:${qc}">${fmtVal(d[k])}</div></div>`;}).join('');
+    const pred=predCache[d.id];
+    const predHtml=pred?`<div style="text-align:right"><div style="font-family:var(--mono);font-size:8px;color:var(--muted);letter-spacing:.08em">TAHMİN · 7 GÜN SONRA</div><div style="font-family:var(--mono);font-size:16px;font-weight:600;color:${aqiColor(pred.predicted_aqi)};margin-top:2px">${pred.predicted_aqi} <span style="font-size:9px;padding:1px 6px;border-radius:3px;border:1px solid ${aqiColor(pred.predicted_aqi)}55;background:${aqiColor(pred.predicted_aqi)}18">${pred.predicted_label}</span></div></div>`:'';
+    return`<div class="device-card${isFirst?' animate-in':''}" style="--accent:${acc}" onclick="showDetail('${d.id}')"><div class="dc-status" style="display:flex;align-items:flex-start;justify-content:space-between"><div style="display:flex;align-items:center;gap:5px"><div class="dc-status-dot" style="background:var(--ok)"></div><div class="dc-status-txt">AKTİF · CANLI</div></div>${predHtml}</div><div class="dc-location">${d.location||'—'}</div><div class="dc-name">${d.name}</div><div class="dc-aqi-row"><div class="dc-aqi-num" style="color:${ac}">${d.aqi??'—'}</div><div class="dc-aqi-badge" style="color:${ac};background:${ac}22;border-color:${ac}44">${d.aqi_label||'—'}</div></div><div class="dc-aqi-dominant">${d.aqi_dominant?'baskın: '+d.aqi_dominant:''}</div><div class="dc-mini">${mini}</div><div class="dc-arrow">→</div></div>`;
+  }).join('');
+  document.getElementById('sel-last-update').textContent=`Son güncelleme: ${new Date().toLocaleTimeString('tr-TR')}${state.demoMode?' · DEMO MOD':''}`;
+}
+
+/* ═══════════════════════
+   OVERVIEW
+═══════════════════════ */
+const HEALTH_ADVICE = {
+  dust: [
+    {max:12,   icon:'🌿', color:'#4ade80', title:'Temiz Hava',     msg:'Pencere açabilirsiniz, dış ortamda aktivite uygundur.'},
+    {max:25,   icon:'✅', color:'#4ade80', title:'İyi Seviye',      msg:'Hava kalitesi normal, herhangi bir önlem gerekmez.'},
+    {max:35,   icon:'🙂', color:'#4ade80', title:'Kabul Edilebilir',msg:'Hassas bireyler uzun süreli dış aktiviteden kaçınabilir.'},
+    {max:55,   icon:'⚠️', color:'#fbbf24', title:'Orta Seviye',     msg:'Hassas gruplar (astım, kalp hastası) dikkatli olmalı.'},
+    {max:9999, icon:'🚫', color:'#f87171', title:'Yüksek Toz',      msg:'Pencereler kapalı tutulmalı, maske önerilir.'},
+  ],
+  co: [
+    {max:4.4,  icon:'✅', color:'#4ade80', title:'Güvenli CO',      msg:'Karbonmonoksit seviyesi normal, havalandırma iyi.'},
+    {max:9.4,  icon:'⚠️', color:'#fbbf24', title:'Dikkat CO',       msg:'Havalandırmayı artırın, yanma kaynaklarını kontrol edin.'},
+    {max:9999, icon:'🚨', color:'#f87171', title:'Yüksek CO',        msg:'Ortamı derhal havalandırın, yanma kaynakları kapatılmalı.'},
+  ],
+  no2: [
+    {max:25,   icon:'✅', color:'#4ade80', title:'Temiz NO₂',       msg:'WHO idealinin altında, iç hava kalitesi iyi.'},
+    {max:53,   icon:'🙂', color:'#4ade80', title:'Normal NO₂',      msg:'EPA limitinin altında, normal koşullar.'},
+    {max:100,  icon:'⚠️', color:'#fbbf24', title:'Dikkat NO₂',      msg:'Havalandırmayı artırın, trafik kaynakları yakın olabilir.'},
+    {max:9999, icon:'🚨', color:'#f87171', title:'Yüksek NO₂',       msg:'Hassas gruplar dışarı çıkmamalı, pencereler kapalı tutulmalı.'},
+  ],
+  temperature: [
+    {max:16,   icon:'🥶', color:'#60a5fa', title:'Soğuk Ortam',     msg:'Isıtma sistemi devreye alınabilir.'},
+    {max:25,   icon:'😊', color:'#4ade80', title:'Konforlu Sıcaklık',msg:'İdeal sıcaklık aralığında, herhangi bir önlem gerekmez.'},
+    {max:30,   icon:'🌡️', color:'#fbbf24', title:'Ilık Ortam',      msg:'Serinletme önlemleri alınabilir.'},
+    {max:9999, icon:'🔥', color:'#f87171', title:'Sıcak Ortam',      msg:'Klima veya havalandırma kullanılmalı, su tüketimi artırılmalı.'},
+  ],
+  humidity: [
+    {max:30,   icon:'🏜️', color:'#fbbf24', title:'Kuru Hava',       msg:'Nemlendirici kullanımı önerilir, cilt ve solunum yollarını koruyun.'},
+    {max:60,   icon:'✅', color:'#4ade80', title:'İdeal Nem',        msg:'Nem seviyesi ideal aralıkta.'},
+    {max:75,   icon:'💧', color:'#4ade80', title:'Nemli Hava',       msg:'Havalandırma yeterli, nem biraz yüksek ama normal.'},
+    {max:9999, icon:'🌊', color:'#f87171', title:'Çok Nemli',        msg:'Nem fazla yüksek, küf riski var. Havalandırma artırılmalı.'},
+  ],
+  ozone_raw: [
+    {max:54,   icon:'✅', color:'#4ade80', title:'Güvenli Ozon',     msg:'Ozon seviyesi güvenli aralıkta.'},
+    {max:70,   icon:'⚠️', color:'#fbbf24', title:'Orta Ozon',       msg:'Uzun süreli dış aktiviteden kaçının.'},
+    {max:9999, icon:'🚫', color:'#f87171', title:'Yüksek Ozon',      msg:'Hassas gruplar dışarı çıkmamalı.'},
+  ],
+};
+
+function getHealthAdvice(key, val){
+  if(val==null||!HEALTH_ADVICE[key]) return null;
+  return HEALTH_ADVICE[key].find(a=>val<=a.max)||HEALTH_ADVICE[key].slice(-1)[0];
+}
+
+function renderHealthStrip(d){
+  const strip = document.getElementById('health-strip');
+  if(!strip) return;
+  const keys = ['dust','co','no2','temperature','humidity','ozone_raw'];
+  const labels = {dust:'PM₂.₅',co:'CO',no2:'NO₂',temperature:'Sıcaklık',humidity:'Nem',ozone_raw:'Ozon'};
+  strip.innerHTML = keys.map(k=>{
+    const v = d[k];
+    const adv = getHealthAdvice(k, v);
+    if(!adv) return '';
+    return `<div style="background:var(--bg);padding:14px 16px;border-left:2px solid ${adv.color}33">
+      <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px">
+        <span style="font-size:14px">${adv.icon}</span>
+        <span style="font-family:var(--mono);font-size:9px;color:${adv.color};font-weight:600;letter-spacing:.06em">${adv.title}</span>
+      </div>
+      <div style="font-family:var(--mono);font-size:8px;color:var(--muted);margin-bottom:4px;letter-spacing:.04em">${labels[k]}: ${fmtVal(v)}</div>
+      <div style="font-size:11px;color:#9ca3af;line-height:1.5">${adv.msg}</div>
+    </div>`;
+  }).join('');
+}
+
+function renderOverview(d){
+  if(!d)return;
+  const ac=aqiColor(d.aqi);
+  document.getElementById('dh-location').textContent=d.location||'—';
+  document.getElementById('dh-name').textContent=d.name;
+  const badge=document.getElementById('dh-badge');
+  badge.textContent=`AQI ${d.aqi??'—'} · ${d.aqi_label||'—'}`;
+  badge.style.color=ac;badge.style.borderColor=ac+'55';badge.style.background=ac+'18';
+  const conn=document.getElementById('dh-conn');
+  conn.textContent=d.online?'● AKTİF':'○ ÇEVRİMDIŞI';conn.style.color=d.online?'var(--ok)':'var(--bad)';
+  // ring
+  const aqiEl=document.getElementById('d-aqi-num');
+  animateCounter(aqiEl, fmtVal(d.aqi));
+  aqiEl.style.color=ac;
+  pulseEl(aqiEl, ac+'44');
+  const arc=document.getElementById('ring-arc');
+  arc.style.strokeDashoffset=301.6-(301.6*Math.min((d.aqi||0)/300,1));arc.style.stroke=ac;
+  document.getElementById('d-aqi-cat').textContent=d.aqi_label||'—';
+  document.getElementById('d-aqi-cat').style.color=ac;
+  document.getElementById('d-aqi-dom').textContent=d.aqi_dominant?'baskın: '+d.aqi_dominant:'';
+  // history
+  ['1h','6h','12h'].forEach(k=>{const el=document.getElementById('h-'+k);const v=d['aqi_'+k];el.textContent=v??'—';el.style.color=aqiColor(v);});
+  // sensors
+  document.getElementById('sensor-grid').innerHTML=SENSOR_DEFS.map(s=>{
+    const v=d[s.key];const[ql,qc,qp]=getQ(s.key,v);const sc=SENSOR_COLORS[s.key];
+    return`<div class="sensor-card" style="--sc:${sc}"><div class="sc-title">${s.label}</div><div class="sc-val count-anim" id="sc-val-${s.key}" style="color:${qc}">${fmtVal(v)}</div><div class="sc-unit">${s.unit}</div><div class="sc-bar-track"><div class="sc-bar-fill" style="width:${qp}%;background:${qc}"></div></div><div class="sc-qual" style="color:${qc}">${ql}</div></div>`;
+  }).join('');
+  // mini charts
+  function mc(id,vals,cfn){const el=document.getElementById(id);if(!el)return;if(!vals||!vals.length){el.innerHTML='<div style="font-family:var(--mono);font-size:9px;color:var(--hint)">—</div>';return;}const mx=Math.max(...vals),mn=Math.min(...vals),r=mx-mn||1;el.innerHTML=vals.map(v=>{const h=Math.max(3,Math.round(((v-mn)/r)*32)+4);return`<div class="mini-bar" style="height:${h}px;background:${cfn(v)}"></div>`;}).join('');}
+  mc('chart-dust',(d.history||{}).dust,v=>getQ('dust',v)[1]);
+  mc('chart-aqi', (d.history||{}).aqi, aqiColor);
+  // corr
+  const corr=d.correlation||{};
+  const cDefs=[{key:'pm_humidity',lbl:'PM₂.₅ / Nem'},{key:'co_temp',lbl:'CO / Sıcaklık'},{key:'no2_temp',lbl:'NO₂ / Sıcaklık'},{key:'ozone_temp',lbl:'O₃ / Sıcaklık'}];
+  renderHealthStrip(d);
+}
+
+/* ═══════════════════════
+   CHART ENGINE
+═══════════════════════ */
+const chartBufs={};
+const CHART_WIN=24*60*60*1000;
+const CHART_THRESH={dust:35,co:9.4,no2:100};
+
+function loadHistoricalData(id){
+  const d = state.devices.find(dev => dev.id === id);
+  if(!d || !d.history || !d.history.timestamps) return;
+  
+  // Eğer zaten yüklendiyse tekrar yükleme
+  if(!chartBufs[id]) chartBufs[id] = {};
+  const buf = chartBufs[id];
+  
+  // İlk yükleme kontrolü - eğer buffer doluysa çık
+  if(buf.temperature && buf.temperature.length > 100) return;
+  
+  const hist = d.history;
+  const now = Date.now();
+  const cut = now - CHART_WIN;
+  
+  SENSOR_DEFS.forEach(s => {
+    if(!buf[s.key]) buf[s.key] = [];
+    const vals = hist[s.key] || [];
+    const timestamps = hist.timestamps || [];
+    
+    for(let i = 0; i < timestamps.length; i++){
+      const t = timestamps[i] * 1000;
+      const v = vals[i];
+      if(t >= cut && v != null && !isNaN(v)){
+        buf[s.key].push({t: t, v: parseFloat(v)});
+      }
+    }
+  });
+}
+
+function pushBuf(id,d){
+  if(!chartBufs[id])chartBufs[id]={};
+  const buf=chartBufs[id],now=Date.now(),cut=now-CHART_WIN;
+  SENSOR_DEFS.forEach(s=>{
+    if(!buf[s.key])buf[s.key]=[];
+    const v=d[s.key];
+    if(v!=null&&!isNaN(v))buf[s.key].push({t:now,v:parseFloat(v)});
+    buf[s.key]=buf[s.key].filter(p=>p.t>=cut);
+  });
+}
+
+function drawCanvas(key,points){
+  const canvas=document.getElementById('canvas-'+key);
+  const nodata=document.getElementById('nodata-'+key);
+  if(!canvas)return;
+  
+  console.log(`[drawCanvas] ${key}: ${points?.length || 0} points`);
+  if(points && points.length > 0) {
+    const times = points.map(p => p.t);
+    console.log(`  Time range: ${new Date(Math.min(...times)).toLocaleTimeString()} - ${new Date(Math.max(...times)).toLocaleTimeString()}`);
+  }
+  
+  if(!points||points.length<2){canvas.style.display='none';if(nodata)nodata.style.display='flex';return;}
+  canvas.style.display='block';if(nodata)nodata.style.display='none';
+  const W=canvas.parentElement.getBoundingClientRect().width||400;
+  const H=120,dpr=window.devicePixelRatio||1;
+  canvas.width=W*dpr;canvas.height=H*dpr;
+  canvas.style.width=W+'px';canvas.style.height=H+'px';
+  const ctx=canvas.getContext('2d');ctx.scale(dpr,dpr);ctx.clearRect(0,0,W,H);
+  const PL=42,PR=10,PT=10,PB=24,CW=W-PL-PR,CH=H-PT-PB;
+  const vals=points.map(p=>p.v),tms=points.map(p=>p.t);
+  let mn=Math.min(...vals),mx=Math.max(...vals);const sp=mx-mn||1;mn-=sp*.08;mx+=sp*.12;
+  const tMin=tms[0],tRange=tms[tms.length-1]-tMin||1;
+  const px=t=>PL+((t-tMin)/tRange)*CW;
+  const py=v=>PT+(1-(v-mn)/(mx-mn))*CH;
+  const color=SENSOR_COLORS[key]||'#60a5fa';
+  const thresh=CHART_THRESH[key]||null;
+  // grid
+  ctx.strokeStyle='rgba(255,255,255,.05)';ctx.lineWidth=.5;
+  for(let i=0;i<=4;i++){const y=PT+(i/4)*CH;ctx.beginPath();ctx.moveTo(PL,y);ctx.lineTo(W-PR,y);ctx.stroke();}
+  // y labels
+  ctx.fillStyle='#6b7280';ctx.font=`500 9px 'JetBrains Mono',monospace`;ctx.textAlign='right';
+  for(let i=0;i<=4;i+=2){const v=mx-(i/4)*(mx-mn),y=PT+(i/4)*CH;const lbl=Math.abs(v)>=100?v.toFixed(0):Math.abs(v)>=10?v.toFixed(1):v.toFixed(2);ctx.fillText(lbl,PL-4,y+3);}
+
+  // x ekseni zaman etiketleri - 6 etiket
+  ctx.fillStyle='#6b7280';ctx.font=`500 8px 'JetBrains Mono',monospace`;ctx.textAlign='center';
+  const xSteps=4;
+  for(let i=0;i<=xSteps;i++){
+    const t=tMin+(tRange*i/xSteps);
+    const x=PL+(CW*i/xSteps);
+    const d=new Date(t);
+    const lbl=d.getHours().toString().padStart(2,'0')+':'+d.getMinutes().toString().padStart(2,'0');
+    // Sadece başlangıç ve bitiş ile ortadaki 2 nokta
+    if(i===0||i===xSteps||i===1||i===3) ctx.fillText(lbl,x,H-3);
+  }
+  // threshold
+  if(thresh!=null&&thresh>=mn&&thresh<=mx){const ty=py(thresh);ctx.strokeStyle='rgba(251,191,36,.35)';ctx.lineWidth=1;ctx.setLineDash([4,4]);ctx.beginPath();ctx.moveTo(PL,ty);ctx.lineTo(W-PR,ty);ctx.stroke();ctx.setLineDash([]);ctx.fillStyle='rgba(251,191,36,.55)';ctx.font=`500 7px 'JetBrains Mono',monospace`;ctx.textAlign='right';ctx.fillText('limit',W-PR-2,ty-3);}
+  // fill
+  const grad=ctx.createLinearGradient(0,PT,0,PT+CH);grad.addColorStop(0,color+'28');grad.addColorStop(1,color+'04');
+  ctx.fillStyle=grad;ctx.beginPath();ctx.moveTo(px(tms[0]),PT+CH);
+  ctx.lineTo(px(tms[0]),py(points[0].v));
+  points.forEach((p,i)=>{
+    if(i===0) return;
+    const px0=px(points[i-1].t),py0=py(points[i-1].v);
+    const x=px(p.t),y=py(p.v);
+    const cpx=(px0+x)/2;
+    ctx.bezierCurveTo(cpx,py0,cpx,y,x,y);
+  });
+  ctx.lineTo(px(tms[tms.length-1]),PT+CH);ctx.closePath();ctx.fill();
+  // line - smooth bezier
+  ctx.strokeStyle=color;ctx.lineWidth=1.5;ctx.lineJoin='round';ctx.lineCap='round';
+  ctx.beginPath();
+  points.forEach((p,i)=>{
+    const x=px(p.t),y=py(p.v);
+    if(i===0){ctx.moveTo(x,y);}
+    else{
+      const px0=px(points[i-1].t),py0=py(points[i-1].v);
+      const cpx=(px0+x)/2;
+      ctx.bezierCurveTo(cpx,py0,cpx,y,x,y);
+    }
+  });
+  ctx.stroke();
+  // last dot
+  const lp=points[points.length-1],lx=px(lp.t),ly=py(lp.v);
+  ctx.fillStyle=color;ctx.beginPath();ctx.arc(lx,ly,3,0,Math.PI*2);ctx.fill();
+  ctx.strokeStyle='#0a0b0d';ctx.lineWidth=1.5;ctx.stroke();
+}
+
+function renderCharts(d){
+  if(!d)return;
+  pushBuf(d.id,d);
+  const buf=chartBufs[d.id]||{};
+  SENSOR_DEFS.forEach(s=>{
+    drawCanvas(s.key,buf[s.key]||[]);
+    const vel=document.getElementById('gc-'+s.key);
+    if(vel){vel.textContent=fmtVal(d[s.key]);vel.style.color=getQ(s.key,d[s.key])[1];}
+    const tax=document.getElementById('tax-'+s.key+'-start');
+    if(tax&&buf[s.key]&&buf[s.key].length>0)tax.textContent=new Date(buf[s.key][0].t).toLocaleTimeString('tr-TR',{hour:'2-digit',minute:'2-digit'});
+  });
+  const up=document.getElementById('charts-last-update');
+  if(up)up.textContent='güncellendi: '+new Date().toLocaleTimeString('tr-TR');
+}
+
+/* ═══════════════════════
+   TABS
+═══════════════════════ */
+function switchTabSilent(name){
+  document.querySelectorAll('.det-tab').forEach((t,i)=>t.classList.toggle('active',['overview','charts','predict'][i]===name));
+  document.querySelectorAll('.tab-pane').forEach(p=>p.classList.toggle('active',p.id==='tab-'+name));
+}
+function switchTab(name){
+  switchTabSilent(name);
+  if(name==='charts')setTimeout(()=>{if(state.activeDetail){loadHistoricalData(state.activeId);renderCharts(state.activeDetail);}},50);
+  if(name==='predict')fetchPrediction(state.activeId);
+}
+
+/* ═══════════════════════
+   NAVİGASYON
+═══════════════════════ */
+function showSelector(){
+  state.activeId=null;state.activeDetail=null;
+  history.pushState({},'','?');
+  document.getElementById('sel-screen').classList.add('active');
+  document.getElementById('det-screen').classList.remove('active');
+}
+const URL_MAP={
+  'Air_Quality_0':'aqi0',
+  'Air_Quality_1':'aqi1',
+  'Air_Quality_2':'aqi2',
+  'Air_Quality_3':'aqi3',
+};
+const URL_MAP_REV={
+  'aqi0':'Air_Quality_0',
+  'aqi1':'Air_Quality_1',
+  'aqi2':'Air_Quality_2',
+  'aqi3':'Air_Quality_3',
+};
+
+async function showDetail(id){
+  state.activeId=id;
+  const slug=URL_MAP[id]||id;
+  history.pushState({id},''  ,`?device=${slug}`);
+  switchTabSilent('overview');
+  document.getElementById('sel-screen').classList.remove('active');
+  document.getElementById('det-screen').classList.add('active');
+  
+  // Detaylı veriyi çek (history dahil)
+  try {
+    const res = await fetch(`${API_BASE}/device/${id}`);
+    if(res.ok) {
+      const detail = await res.json();
+      state.activeDetail = detail;
+      // state.devices'daki cihazı güncelle
+      const idx = state.devices.findIndex(d => d.id === id);
+      if(idx !== -1) state.devices[idx] = detail;
+    }
+  } catch(e) {
+    console.error('Detail fetch error:', e);
+  }
+  // Cihaz değişince buffer'ı temizle ki geçmiş yeniden yüklensin
+  if(chartBufs[id]) delete chartBufs[id];
+  const sum=(state.devices||[]).find(d=>d.id===id);
+  if(sum){renderOverview(sum);pushBuf(id,sum);}
+  await refreshDetail();
+}
+
+/* ═══════════════════════
+   NAVBAR
+═══════════════════════ */
+function updateNavbar(){
+  const dot=document.getElementById('nb-dot'),txt=document.getElementById('nb-status-txt');
+  if(state.demoMode){dot.className='nb-dot warn';txt.textContent=`${(state.devices||[]).length} cihaz · DEMO MOD`;}
+  else if(state.apiOk){const on=(state.devices||[]).filter(d=>d.online).length;dot.className='nb-dot';txt.textContent=`${on}/${(state.devices||[]).length} cihaz aktif`;}
+  else{dot.className='nb-dot searching';txt.textContent='API bağlantısı yok';}
+  const rd=document.getElementById('nb-refresh-dot');rd.classList.add('active');setTimeout(()=>rd.classList.remove('active'),400);
+  document.getElementById('nb-refresh-txt').textContent=`${REFRESH_MS/1000}s · ${state.demoMode?'demo':'canlı'}`;
+}
+setInterval(()=>{
+  document.getElementById('nb-clock').textContent=new Date().toLocaleTimeString('tr-TR',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
+  if(state.activeId)document.getElementById('dh-time').textContent=new Date().toLocaleTimeString('tr-TR',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
+},1000);
+
+/* ═══════════════════════
+   REFRESH LOOP
+═══════════════════════ */
+async function refreshSelector(){
+  const data=await fetchDevices();
+  if(data&&Array.isArray(data)){
+    state.devices=data;state.apiOk=true;state.demoMode=false;
+    // Tahmin verilerini arka planda çek (selector'u bloklama)
+    data.filter(d=>d.online).forEach(d=>fetchPredictionForCard(d.id));
+  }
+  else if(!state.apiOk){state.devices=DEMO_DEVICES;state.demoMode=true;}
+  renderSelector();updateNavbar();
+}
+async function refreshDetail(){
+  if(!state.activeId)return;
+  let d=null;
+  if(!state.demoMode)d=await fetchDevice(state.activeId);
+  if(!d)d=DEMO_DEVICES.find(x=>x.id===state.activeId)||null;
+  if(d){
+    state.activeDetail=d;
+    renderOverview(d);
+    // Geçmiş veriyi buffer'a yükle
+    if(d.history && d.history.timestamps && d.history.timestamps.length>0){
+      const hist=d.history;
+      const n=hist.timestamps.length;
+      if(!chartBufs[d.id])chartBufs[d.id]={};
+      const buf=chartBufs[d.id];
+      const keys=['temperature','humidity','dust','co','no2','ozone_raw'];
+      keys.forEach(k=>{
+        if(!buf[k])buf[k]=[];
+        // Sadece ilk yüklemede geçmişi ekle
+        if(hist[k]){
+          hist[k].forEach((v,i)=>{
+            if(v!=null && !isNaN(v)){
+              buf[k].push({t: hist.timestamps[i]*1000, v: parseFloat(v)});
+            }
+          });
+        }
+      });
+    }
+    pushBuf(d.id,d);
+    if(document.getElementById('tab-charts').classList.contains('active'))
+      setTimeout(()=>renderCharts(d),20);
+  }
+}
+async function refresh(){
+  if(state.activeId){
+    await refreshDetail();
+    const sd=await fetchDevices();
+    if(sd&&Array.isArray(sd)){state.devices=sd;state.apiOk=true;state.demoMode=false;}
+  } else {
+    await refreshSelector();
+  }
+  updateNavbar();
+}
+
+/* ═══════════════════════
+   TAHMİN
+═══════════════════════ */
+async function fetchPrediction(deviceId){
+  const idMap={'Air_Quality_0':'aqm00','Air_Quality_1':'aqm01','Air_Quality_2':'aqm02','Air_Quality_3':'aqm03'};
+  deviceId=idMap[deviceId]||deviceId;
+  if(!deviceId) return;
+  document.getElementById('pred-info').textContent = 'Tahmin hesaplanıyor...';
+  document.getElementById('pred-error').style.display = 'none';
+  try{
+    const r = await fetch(`${PREDICT_BASE}/api/predict/${deviceId}`,{signal:AbortSignal.timeout(15000)});
+    const d = await r.json();
+    if(d.error && !d.predicted_aqi){
+      document.getElementById('pred-error').style.display='block';
+      document.getElementById('pred-error-txt').textContent = '⚠ ' + d.error;
+      document.getElementById('pred-info').textContent = 'Model yüklenemedi.';
+      return;
+    }
+    renderPrediction(d);
+  }catch(e){
+    // Demo mod
+    const cur = state.activeDetail ? (state.activeDetail.aqi||55) : 55;
+    renderPrediction({
+      predicted_aqi: cur + Math.round((Math.random()-0.5)*10),
+      predicted_label: cur<=50?'İyi':cur<=100?'Orta':'Hassas Gruplar',
+      current_aqi: cur,
+      current_label: cur<=50?'İyi':cur<=100?'Orta':'Hassas Gruplar',
+      confidence: 'low',
+      dominant: 'PM2.5',
+      hours_of_data: 22,
+      _demo: true
+    });
+  }
+}
+
+function renderPrediction(d){
+  const ac = c=> c<=50?'#4ade80':c<=100?'#fbbf24':c<=150?'#fbbf24':'#f87171';
+  const cur  = d.current_aqi  || 0;
+  const pred = d.predicted_aqi|| 0;
+  const diff = pred - cur;
+
+  // Şu an
+  document.getElementById('pred-current-num').textContent = cur;
+  document.getElementById('pred-current-num').style.color = ac(cur);
+  document.getElementById('pred-current-label').textContent = d.current_label||'—';
+  document.getElementById('pred-current-label').style.color = ac(cur);
+
+  // Tahmin
+  document.getElementById('pred-num').textContent = pred;
+  document.getElementById('pred-num').style.color = ac(pred);
+  document.getElementById('pred-label').textContent = d.predicted_label||'—';
+  document.getElementById('pred-label').style.color = ac(pred);
+
+  // Fark
+  const diffEl = document.getElementById('pred-diff');
+  if(Math.abs(diff)<1){
+    diffEl.textContent = '→ Stabil kalması bekleniyor';
+    diffEl.style.color = 'var(--muted)';
+  } else if(diff>0){
+    diffEl.textContent = `▲ +${diff.toFixed(0)} AQI artış bekleniyor`;
+    diffEl.style.color = '#fbbf24';
+  } else {
+    diffEl.textContent = `▼ ${diff.toFixed(0)} AQI düşüş bekleniyor`;
+    diffEl.style.color = '#4ade80';
+  }
+
+  // Güvenilirlik
+  const confEl = document.getElementById('pred-confidence');
+  const confMap = {
+    high:    ['YÜKSEK',   '#4ade80'],
+    medium:  ['ORTA',     '#fbbf24'],
+    low:     ['DÜŞÜK',    '#f87171'],
+    no_data: ['VERİ YOK', '#6b7280'],
+  };
+  const [confTxt, confColor] = confMap[d.confidence]||['—','#6b7280'];
+  confEl.textContent = confTxt;
+  confEl.style.color = confColor;
+  confEl.style.borderColor = confColor+'55';
+
+  // Bilgi metni
+  const hours = d.hours_of_data||0;
+  const confDesc = d.confidence==='high'  ? 'Model yüksek güvenle çalışıyor.' :
+                   d.confidence==='medium' ? 'Orta güven — daha fazla veri biriktikçe iyileşir.' :
+                                             'Düşük güven — henüz yeterli gerçek veri yok.';
+  document.getElementById('pred-info').innerHTML =
+    `Baskın kirletici : ${d.dominant||'—'}<br>` +
+    `Kullanılan veri  : ${hours} saat<br>` +
+    `Model durumu     : ${confDesc}` +
+    (d._demo ? '<br><span style="color:#fbbf24">⚠ API bağlı değil — demo tahmin gösteriliyor</span>' : '');
+
+  // Güncelleme saati
+  document.getElementById('pred-updated').textContent =
+    'güncellendi: ' + new Date().toLocaleTimeString('tr-TR',{hour:'2-digit',minute:'2-digit'});
+
+  // Özet cümle
+  const summaryBar = document.getElementById('pred-summary-bar');
+  const summaryTxt = document.getElementById('pred-summary-txt');
+  if(d.summary && summaryBar && summaryTxt){
+    summaryBar.style.display = 'block';
+    summaryTxt.textContent = d.summary;
+    summaryTxt.style.color = diff > 3 ? '#fbbf24' : diff < -3 ? '#4ade80' : '#60a5fa';
+  } else if(summaryBar){
+    summaryBar.style.display = 'none';
+  }
+
+  // ── SENSÖR TAHMİN TABLOSU ──
+  const sensorDefs = [
+    {key:'dust',        label:'PM₂.₅',  unit:'µg/m³'},
+    {key:'co',          label:'CO',      unit:'ppm'},
+    {key:'no2',         label:'NO₂',     unit:'ppb'},
+    {key:'temperature', label:'Sıcaklık',unit:'°C'},
+    {key:'humidity',    label:'Nem',     unit:'%'},
+    {key:'ozone_raw',   label:'Ozon',    unit:'ppb'},
+  ];
+  const sensorColors = {
+    dust:'#c084fc',co:'#4ade80',no2:'#5eead4',
+    temperature:'#60a5fa',humidity:'#78c5e0',ozone_raw:'#f87171'
+  };
+  const cur_s  = d.sensor_current     || {};
+  const pred_s = d.sensor_predictions || {};
+  const grid   = document.getElementById('pred-sensors-grid');
+  if(grid && Object.keys(pred_s).length > 0){
+    grid.innerHTML = sensorDefs.map(s=>{
+      const cv = cur_s[s.key];
+      const pv = pred_s[s.key];
+      const col = sensorColors[s.key] || '#6b7280';
+      const diff_s = (cv != null && pv != null) ? (pv - cv) : null;
+      const arrow = diff_s == null ? '' : diff_s > 0.5 ? '▲' : diff_s < -0.5 ? '▼' : '→';
+      const arrowColor = diff_s == null ? '#6b7280' : diff_s > 0.5 ? '#fbbf24' : diff_s < -0.5 ? '#4ade80' : '#6b7280';
+      const fmt = v => v == null ? '—' : Math.abs(v)>=100 ? v.toFixed(0) : Math.abs(v)>=10 ? v.toFixed(1) : v.toFixed(2);
+      return `<div style="background:var(--bg);padding:12px 14px;border-left:2px solid ${col}40">
+        <div style="font-family:var(--mono);font-size:8px;color:var(--muted);margin-bottom:6px">${s.label} · ${s.unit}</div>
+        <div style="display:flex;align-items:baseline;gap:6px">
+          <span style="font-family:var(--mono);font-size:11px;color:var(--hint)">${fmt(cv)}</span>
+          <span style="font-family:var(--mono);font-size:10px;color:${arrowColor}">${arrow}</span>
+          <span style="font-family:var(--mono);font-size:15px;font-weight:600;color:${col}">${fmt(pv)}</span>
+        </div>
+        ${diff_s != null && Math.abs(diff_s) > 0.5 ?
+          `<div style="font-family:var(--mono);font-size:8px;color:${arrowColor};margin-top:3px">${diff_s>0?'+':''}${fmt(diff_s)} değişim</div>` : ''}
+      </div>`;
+    }).join('');
+  }
+
+  // ── AQI DEĞİŞİM AÇIKLAMALARI ──
+  const expCard = document.getElementById('pred-explanations-card');
+  const expDiv  = document.getElementById('pred-explanations');
+  const exps    = d.explanations || [];
+  if(exps.length > 0 && expCard && expDiv){
+    expCard.style.display = 'block';
+    expDiv.innerHTML = exps.map(e=>{
+      const col = e.direction === '▲' ? '#fbbf24' : '#4ade80';
+      return `<div style="display:flex;align-items:center;gap:10px;padding:8px 10px;background:rgba(255,255,255,.03);border-radius:4px;border-left:2px solid ${col}">
+        <div style="font-family:var(--mono);font-size:18px;color:${col}">${e.direction}</div>
+        <div style="flex:1">
+          <div style="font-family:var(--mono);font-size:10px;color:var(--text)">${e.label}</div>
+          <div style="font-family:var(--mono);font-size:9px;color:var(--muted);margin-top:2px">
+            ${e.current} → ${e.predicted} ${e.unit} &nbsp;·&nbsp; ${e.pct > 0 ? '+' : ''}${e.pct}% ${e.effect}
+          </div>
+        </div>
+      </div>`;
+    }).join('');
+  } else if(expCard){
+    expCard.style.display = 'none';
+  }
+}
+
+/* ═══════════════════════
+   BAŞLANGIÇ
+═══════════════════════ */
+let _firstLoad=true;
+async function init(){
+  const overlay = document.getElementById('conn-overlay');
+  const progress = document.getElementById('ov-progress');
+  const txt = document.getElementById('ov-txt');
+  const step1 = document.getElementById('ov-step-1');
+  const step2 = document.getElementById('ov-step-2');
+  const step3 = document.getElementById('ov-step-3');
+
+  overlay.classList.add('show');
+
+  // Adım 1: API bağlantısı
+  txt.textContent = 'API bağlantısı kuruluyor...';
+  progress.style.width = '20%';
+  await new Promise(r=>setTimeout(r,400));
+  step1.textContent = '● API bağlantısı';
+  step1.classList.add('done');
+
+  // Adım 2: Sensör verileri
+  txt.textContent = 'Sensör verileri alınıyor...';
+  progress.style.width = '55%';
+  await refreshSelector();
+  step2.textContent = '● Sensör verileri';
+  step2.classList.add('done');
+  progress.style.width = '80%';
+
+  // Adım 3: Hazırlanıyor
+  txt.textContent = 'Arayüz hazırlanıyor...';
+  await new Promise(r=>setTimeout(r,400));
+  progress.style.width = '100%';
+  step3.textContent = '● Hazırlandı';
+  step3.classList.add('done');
+  txt.textContent = 'Hoş geldiniz.';
+  await new Promise(r=>setTimeout(r,500));
+
+  overlay.classList.remove('show');
+
+  // URL'den cihaz aç
+  const params=new URLSearchParams(window.location.search);
+  const deviceSlug=params.get('device');
+  if(deviceSlug){
+    const deviceId=URL_MAP_REV[deviceSlug]||deviceSlug;
+    const found=(state.devices||[]).find(d=>d.id===deviceId);
+    if(found&&found.online) await showDetail(deviceId);
+  }
+
+  // Browser geri tuşu
+  window.addEventListener('popstate',e=>{
+    const p=new URLSearchParams(window.location.search);
+    const slug=p.get('device');
+    if(slug){
+      const did=URL_MAP_REV[slug]||slug;
+      showDetail(did);
+    } else {
+      state.activeId=null;state.activeDetail=null;
+      document.getElementById('sel-screen').classList.add('active');
+      document.getElementById('det-screen').classList.remove('active');
+    }
+  });
+
+  setInterval(refresh,REFRESH_MS);
+}
+init();
+</script>
+</body>
+</html>
