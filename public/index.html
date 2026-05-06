@@ -773,6 +773,9 @@ function drawCanvas(key,points){
   const W=canvas.parentElement.getBoundingClientRect().width||400;
   const H=120,dpr=window.devicePixelRatio||1;
   canvas.width=W*dpr;canvas.height=H*dpr;
+  
+  // Mouse wheel zoom (gelecek özellik için hazırlık)
+  // canvas.onwheel = (e) => { e.preventDefault(); /* zoom logic */ };
   canvas.style.width=W+'px';canvas.style.height=H+'px';
   const ctx=canvas.getContext('2d');ctx.scale(dpr,dpr);ctx.clearRect(0,0,W,H);
   const PL=42,PR=10,PT=10,PB=24,CW=W-PL-PR,CH=H-PT-PB;
