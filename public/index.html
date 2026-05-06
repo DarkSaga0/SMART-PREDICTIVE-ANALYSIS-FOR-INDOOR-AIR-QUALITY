@@ -778,7 +778,7 @@ function drawCanvas(key,points){
   // canvas.onwheel = (e) => { e.preventDefault(); /* zoom logic */ };
   canvas.style.width=W+'px';canvas.style.height=H+'px';
   const ctx=canvas.getContext('2d');ctx.scale(dpr,dpr);ctx.clearRect(0,0,W,H);
-  const PL=42,PR=10,PT=10,PB=24,CW=W-PL-PR,CH=H-PT-PB;
+  const PL=42,PR=40,PT=10,PB=24,CW=W-PL-PR,CH=H-PT-PB;
   const vals=points.map(p=>p.v),tms=points.map(p=>p.t);
   let mn=Math.min(...vals),mx=Math.max(...vals);const sp=mx-mn||1;mn-=sp*.08;mx+=sp*.12;
   const tMin=tms[0],tRange=tms[tms.length-1]-tMin||1;
