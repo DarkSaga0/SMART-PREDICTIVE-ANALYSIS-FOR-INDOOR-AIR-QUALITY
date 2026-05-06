@@ -901,6 +901,8 @@ function switchTabSilent(name){
 function switchTab(name){
   switchTabSilent(name);
   if(name==='charts'){
+    // Buffer'ı tamamen temizle - yeni veri yüklenecek
+    if(state.activeId) chartBufs[state.activeId] = {};
     // Buffer'ı temizle ve sadece geçmiş verileri yükle
     chartBufs = {};
     setTimeout(()=>{
