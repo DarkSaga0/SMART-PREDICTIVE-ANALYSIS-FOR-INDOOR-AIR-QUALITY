@@ -1008,18 +1008,7 @@ async function refreshDetail(){
       const n=hist.timestamps.length;
       if(!chartBufs[d.id])chartBufs[d.id]={};
       const buf=chartBufs[d.id];
-      const keys=['temperature','humidity','dust','co','no2','ozone_raw'];
-      keys.forEach(k=>{
-        if(!buf[k])buf[k]=[];
-        // Sadece ilk yüklemede geçmişi ekle
-        if(hist[k]){
-          hist[k].forEach((v,i)=>{
-            if(v!=null && !isNaN(v)){
-              buf[k].push({t: hist.timestamps[i]*1000, v: parseFloat(v)});
-            }
-          });
-        }
-      });
+      // History yükleme loadHistoricalData'da yapılıyor - burada tekrar ekleme
     }
     pushBuf(d.id,d);
   }
