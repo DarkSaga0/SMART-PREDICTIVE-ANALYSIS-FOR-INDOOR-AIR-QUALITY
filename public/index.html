@@ -719,8 +719,7 @@ function loadHistoricalData(id){
   if(!chartBufs[id]) chartBufs[id] = {};
   const buf = chartBufs[id];
   
-  // Buffer boşsa yükle
-  if(buf.temperature && buf.temperature.length > 0) return;
+  // Her zaman yükle - Charts açılınca buffer zaten temizlendi
   
   const hist = d.history;
   const now = Date.now();
