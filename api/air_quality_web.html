@@ -712,7 +712,7 @@ const CHART_WIN=6*60*60*1000;
 const CHART_THRESH={dust:35,co:9.4,no2:100};
 
 function loadHistoricalData(id){
-  const d = state.devices.find(dev => dev.id === id);
+  const d = state.activeDetail || state.devices.find(dev => dev.id === id);
   if(!d || !d.history || !d.history.timestamps) return;
   
   // Eğer zaten yüklendiyse tekrar yükleme
