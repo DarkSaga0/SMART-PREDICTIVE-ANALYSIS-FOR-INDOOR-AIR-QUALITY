@@ -585,13 +585,13 @@ async function fetchDevice(id){
 ═══════════════════════ */
 function renderSelector(){
   const grid=document.getElementById('device-grid');
-  const devs=state.devices;
+  const devs=(state.devices||[]).filter(d=>d.online!==false);
   if(!devs||!devs.length){grid.innerHTML='<div style="grid-column:1/-1;padding:40px;text-align:center;font-family:var(--mono);font-size:11px;color:var(--muted)">Cihaz verisi alınamadı</div>';return;}
   const isFirst=_firstLoad;
   if(_firstLoad)_firstLoad=false;
   grid.innerHTML=devs.map((d,i)=>{
     const acc=DEVICE_ACCENTS[i%4],ac=aqiColor(d.aqi);
-    if(!d.online)return`<div class="device-card${isFirst?' animate-in':''}" style="--accent:${acc}"><div class="dc-status"><div class="dc-status-dot" style="background:var(--bad)"></div><div class="dc-status-txt">ÇEVRİMDIŞI</div></div><div class="dc-location">${d.location||'—'}</div><div class="dc-name">${d.name}</div><div style="height:60px;display:flex;align-items:center;justify-content:center;font-family:var(--mono);font-size:10px;color:var(--muted)">Bağlantı yok</div></div>`;
+    // Offline devices are filtered out
     const mini=['temperature','humidity','dust','co','no2','ozone_raw'].map(k=>{const def=SENSOR_DEFS.find(s=>s.key===k);const[,qc]=getQ(k,d[k]);return`<div class="dc-mini-item"><div class="dc-mini-k">${def.label}</div><div class="dc-mini-v" style="color:${qc}">${fmtVal(d[k])}</div></div>`;}).join('');
     const pred=predCache[d.id];
     const predHtml=pred?`<div style="text-align:right"><div style="font-family:var(--mono);font-size:8px;color:var(--muted);letter-spacing:.08em">TAHMİN · 7 GÜN SONRA</div><div style="font-family:var(--mono);font-size:16px;font-weight:600;color:${aqiColor(pred.predicted_aqi)};margin-top:2px">${pred.predicted_aqi} <span style="font-size:9px;padding:1px 6px;border-radius:3px;border:1px solid ${aqiColor(pred.predicted_aqi)}55;background:${aqiColor(pred.predicted_aqi)}18">${pred.predicted_label}</span></div></div>`:'';
