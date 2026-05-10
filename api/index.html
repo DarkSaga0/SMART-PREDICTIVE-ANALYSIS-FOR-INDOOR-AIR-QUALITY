@@ -1097,43 +1097,6 @@ function renderPrediction(d){
     summaryBar.style.display = 'none';
   }
 
-  // ── SENSÖR TAHMİN TABLOSU ──
-  const sensorDefs = [
-    {key:'dust',        label:'PM₂.₅',  unit:'µg/m³'},
-    {key:'co',          label:'CO',      unit:'ppm'},
-    {key:'no2',         label:'NO₂',     unit:'ppb'},
-    {key:'temperature', label:'Sıcaklık',unit:'°C'},
-    {key:'humidity',    label:'Nem',     unit:'%'},
-    {key:'ozone_raw',   label:'Ozon',    unit:'ppb'},
-  ];
-  const sensorColors = {
-    dust:'#c084fc',co:'#4ade80',no2:'#5eead4',
-    temperature:'#60a5fa',humidity:'#78c5e0',ozone_raw:'#f87171'
-  };
-  const cur_s  = d.sensor_current     || {};
-  const pred_s = d.sensor_predictions || {};
-  const grid   = document.getElementById('pred-sensors-grid');
-  if(grid && Object.keys(pred_s).length > 0){
-    grid.innerHTML = sensorDefs.map(s=>{
-      const cv = cur_s[s.key];
-      const pv = pred_s[s.key];
-      const col = sensorColors[s.key] || '#6b7280';
-      const diff_s = (cv != null && pv != null) ? (pv - cv) : null;
-      const arrow = diff_s == null ? '' : diff_s > 0.5 ? '▲' : diff_s < -0.5 ? '▼' : '→';
-      const arrowColor = diff_s == null ? '#6b7280' : diff_s > 0.5 ? '#fbbf24' : diff_s < -0.5 ? '#4ade80' : '#6b7280';
-      const fmt = v => v == null ? '—' : Math.abs(v)>=100 ? v.toFixed(0) : Math.abs(v)>=10 ? v.toFixed(1) : v.toFixed(2);
-      return `<div style="background:var(--bg);padding:12px 14px;border-left:2px solid ${col}40">
-        <div style="font-family:var(--mono);font-size:8px;color:var(--muted);margin-bottom:6px">${s.label} · ${s.unit}</div>
-        <div style="display:flex;align-items:baseline;gap:6px">
-          <span style="font-family:var(--mono);font-size:11px;color:var(--hint)">${fmt(cv)}</span>
-          <span style="font-family:var(--mono);font-size:10px;color:${arrowColor}">${arrow}</span>
-          <span style="font-family:var(--mono);font-size:15px;font-weight:600;color:${col}">${fmt(pv)}</span>
-        </div>
-        ${diff_s != null && Math.abs(diff_s) > 0.5 ?
-          `<div style="font-family:var(--mono);font-size:8px;color:${arrowColor};margin-top:3px">${diff_s>0?'+':''}${fmt(diff_s)} değişim</div>` : ''}
-      </div>`;
-    }).join('');
-  }
 
   // ── AQI DEĞİŞİM AÇIKLAMALARI ──
   const expCard = document.getElementById('pred-explanations-card');
