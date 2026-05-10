@@ -981,7 +981,7 @@ async function refreshSelector(){
   if(data&&Array.isArray(data)){
     state.devices=data;state.apiOk=true;state.demoMode=false;
     // Tahmin verilerini arka planda çek (selector'u bloklama)
-    data.filter(d=>d.online).forEach(d=>fetchPredictionForCard(d.id));
+    // Tahmin sadece detay sayfasında çekilecek
   }
   else if(!state.apiOk){state.devices=DEMO_DEVICES;state.demoMode=true;}
   renderSelector();updateNavbar();
