@@ -1034,6 +1034,11 @@ async function fetchPrediction(deviceId){
       document.getElementById('pred-info').textContent = 'Model yüklenemedi.';
       return;
     }
+    // Anlık AQI'yi api_server'dan al
+    if(state.activeDetail && state.activeDetail.aqi) {
+      d.current_aqi = state.activeDetail.aqi;
+      d.current_label = state.activeDetail.aqi_label;
+    }
     renderPrediction(d);
   }catch(e){
     // Demo mod
