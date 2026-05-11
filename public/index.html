@@ -13,6 +13,11 @@
   --bad:#f87171;--blue:#60a5fa;--text:#e8eaed;--muted:#6b7280;--hint:#3c4043;
   --mono:'JetBrains Mono',monospace;--sans:'DM Sans',sans-serif;
 }
+[data-theme="light"]{
+  --bg:#f4f5f7;--card:#ffffff;--border:rgba(0,0,0,0.08);
+  --border2:rgba(0,0,0,0.15);--ok:#16a34a;--warn:#d97706;
+  --bad:#dc2626;--blue:#2563eb;--text:#111827;--muted:#6b7280;--hint:#9ca3af;
+}
 html,body{background:var(--bg);color:var(--text);font-family:var(--sans);min-height:100vh;font-size:14px}html{zoom:1.25}
 
 /* NAVBAR */
@@ -238,6 +243,8 @@ html,body{background:var(--bg);color:var(--text);font-family:var(--sans);min-hei
   <div class="nb-refresh"><div class="nb-refresh-dot" id="nb-refresh-dot"></div><span id="nb-refresh-txt">—</span></div>
   <div class="nb-sep"></div>
   <div class="nb-clock" id="nb-clock">--:--:--</div>
+  <div class="nb-sep"></div>
+  <button id="theme-btn" onclick="toggleTheme()" style="background:transparent;border:1px solid var(--border2);border-radius:3px;color:var(--muted);font-family:var(--mono);font-size:10px;padding:3px 8px;cursor:pointer;transition:all .2s" title="Tema değiştir">☀</button>
 </div>
 
 <div id="conn-overlay">
@@ -1190,6 +1197,24 @@ function renderPrediction(d){
 /* ═══════════════════════
    BAŞLANGIÇ
 ═══════════════════════ */
+// Tema yönetimi
+function toggleTheme(){
+  const html = document.documentElement;
+  const isLight = html.getAttribute('data-theme') === 'light';
+  html.setAttribute('data-theme', isLight ? 'dark' : 'light');
+  document.getElementById('theme-btn').textContent = isLight ? '☀' : '🌙';
+  localStorage.setItem('theme', isLight ? 'dark' : 'light');
+}
+function loadTheme(){
+  const saved = localStorage.getItem('theme') || 'dark';
+  if(saved === 'light'){
+    document.documentElement.setAttribute('data-theme', 'light');
+    const btn = document.getElementById('theme-btn');
+    if(btn) btn.textContent = '🌙';
+  }
+}
+loadTheme();
+
 let _firstLoad=true;
 async function init(){
   const overlay = document.getElementById('conn-overlay');
