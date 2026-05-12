@@ -1186,26 +1186,7 @@ function renderPrediction(d){
   }
 
   // ── AQI DEĞİŞİM AÇIKLAMALARI ──
-  const expCard = document.getElementById('pred-explanations-card');
-  const expDiv  = document.getElementById('pred-explanations');
-  const exps    = d.explanations || [];
-  if(exps.length > 0 && expCard && expDiv){
-    expCard.style.display = 'block';
-    expDiv.innerHTML = exps.map(e=>{
-      const col = e.direction === '▲' ? '#fbbf24' : '#4ade80';
-      return `<div style="display:flex;align-items:center;gap:10px;padding:8px 10px;background:rgba(255,255,255,.03);border-radius:4px;border-left:2px solid ${col}">
-        <div style="font-family:var(--mono);font-size:18px;color:${col}">${e.direction}</div>
-        <div style="flex:1">
-          <div style="font-family:var(--mono);font-size:10px;color:var(--text)">${e.label}</div>
-          <div style="font-family:var(--mono);font-size:9px;color:var(--muted);margin-top:2px">
-            ${e.current} → ${e.predicted} ${e.unit} &nbsp;·&nbsp; ${e.pct > 0 ? '+' : ''}${e.pct}% ${e.effect}
-          </div>
-        </div>
-      </div>`;
-    }).join('');
-  } else if(expCard){
-    expCard.style.display = 'none';
-  }
+  // pred-explanations kaldırıldı
 }
 
 /* ═══════════════════════
